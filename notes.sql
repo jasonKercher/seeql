@@ -11,13 +11,24 @@ where package = ''
 
 /** Output **/
 select
-     t1.seq t1_joinkey, t2.seq t2_joinkey -- only need 1
-    ,package t1_value, package + 'x' t2_value
-    ,identity(int, 1, 1) xxxxxx_ID
+    package org_value,
+    package + 'x' new_value
 into #TEST
 from table1 t1
-left join table2 t2 on t1.seq = t2.seq
+join table2 t2 on t1.seq = t2.seq
 where package = ''
+
+declare @${hash}_unjoined bigint = (
+    select count(*)
+    from table1 t1
+    left join table2 t2 on t1.seq = t2.seq
+    where package = ''
+        and t2.seq is null
+)
+
+/** Tracking table **/
+insert into tracking
+select query, hash, field, changed, affected, unaffected, unjoined
 
 /**
  * Output
@@ -32,5 +43,3 @@ where package = ''
  * no where clause ~ okay if t2 is smaller (< 10%)
  *
  */
-
-

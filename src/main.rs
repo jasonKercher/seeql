@@ -33,6 +33,12 @@ mod listeners {
     pub mod analyzer;
 }
 
+mod query {
+    pub mod join;
+    pub mod table;
+    pub mod update;
+}
+
 use listeners::analyzer::Analyzer;
 
 fn main() {
@@ -44,10 +50,18 @@ fn main() {
         .read_to_string(&mut buffer)
         .expect("Failed to read stdin");
 
-    //let tf = ArenaCowFactory::default();
     let mut _lexer = TSqlLexer::new(Box::new(UpperStream::new(buffer.into())));
     let token_source = CommonTokenStream::new(_lexer);
     let mut parser = TSqlParser::new(Box::new(token_source));
-    parser.add_parse_listener(Box::new(Analyzer {}));
+
+    let analyzer = Box::new(Analyzer::new(true));
+
+    //let analyzer = Box::new(Analyzer {
+    //    verbose: true,
+    //    output: String::new(),
+    //    updates: Vec::new(),
+    //});
+    parser.add_parse_listener(analyzer);
+
     let _result = parser.tsql_file().expect("parser failed");
 }
