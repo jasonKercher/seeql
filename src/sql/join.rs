@@ -1,4 +1,4 @@
-use crate::query::table::Table;
+use crate::sql::table::Table;
 
 enum JoinType {
     INNER,

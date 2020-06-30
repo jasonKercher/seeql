@@ -33,7 +33,7 @@ mod listeners {
     pub mod analyzer;
 }
 
-mod query {
+mod sql {
     pub mod join;
     pub mod table;
     pub mod update;
