@@ -261,9 +261,9 @@ impl<'input> TSqlParserListener for Analyzer {
     }
 
     fn exit_update_statement(&mut self, _ctx: &Update_statementContext) {
-        let start = _ctx.get_start().get_start();
-        let stop = _ctx.get_stop().get_stop();
-        self.update.as_mut().unwrap().query = _ctx.get_text_from_interval(start, stop);
+        self.update.as_mut().unwrap().start = _ctx.get_start().get_start();
+        self.update.as_mut().unwrap().stop = _ctx.get_stop().get_stop();
+        //self.update.as_mut().unwrap().query = _ctx.get_text_from_interval();
         self.print_output();
         self.update = None;
     }

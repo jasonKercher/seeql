@@ -52,6 +52,7 @@ fn main() {
 
     let mut _lexer = TSqlLexer::new(Box::new(UpperStream::new(buffer.into())));
     let token_source = CommonTokenStream::new(_lexer);
+
     let mut parser = TSqlParser::new(Box::new(token_source));
 
     let analyzer = Box::new(Analyzer::new(true));
