@@ -9,6 +9,9 @@ pub struct UpdateStatement {
     pub set_value: Vec<String>,
     pub from_clause: String,
     pub where_clause: String,
+    pub start: isize,
+    pub stop: isize,
+    pub query: String,
 }
 
 impl UpdateStatement {
@@ -21,6 +24,9 @@ impl UpdateStatement {
             set_value: Vec::new(),
             from_clause: String::new(),
             where_clause: String::new(),
+            start: 0,
+            stop: 0,
+            query: String::new(),
         }
     }
 }

@@ -71,22 +71,23 @@ impl Analyzer {
                 &self.update.as_ref().unwrap().update_table.alias
             };
 
+            let check_name = &format!("check_{}_{}", self.update_count, i);
+            let table_name = &self.update.as_ref().unwrap().update_table.name;
+
             /*
              * Build Check table
              */
             println!(
-                "SELECT '{}' field_name, '{}' table_name {}.{} val, {} new_val",
-                col,
-                self.update.as_ref().unwrap().update_table.name,
+                "\nSELECT {}.{} val, {} new_val",
                 update_table_alias,
                 col,
                 self.update.as_ref().unwrap().set_value[i]
             );
 
-            println!("INTO #check_{}_{}", self.update_count, i);
+            println!("INTO #{}", check_name);
 
             if self.update.as_ref().unwrap().from_clause.is_empty() {
-                println!("FROM {}", self.update.as_ref().unwrap().update_table.name);
+                println!("FROM {}", table_name);
             } else {
                 println!("FROM {}", self.update.as_ref().unwrap().from_clause);
             }
@@ -96,8 +97,43 @@ impl Analyzer {
             }
 
             /*
-             * Insert into tracking table
+             * Calculate statistics
              */
+            let query = "aQuery";
+            let hash = "aHash";
+            let file_name = "aFile";
+
+            println!(
+                "-- START: {}, STOP: {}",
+                self.update.as_ref().unwrap().start,
+                self.update.as_ref().unwrap().stop
+            );
+
+            println!("\ninsert into check_tracking (query, hash, file_name, table_name, field_name, table_count, affected, changed, to_null, to_blank)\n\
+                select '{}', '{}', '{}', '{}', '{}'\n\
+                    \t,count(*) affected\n\
+                    \t,(select count(*) from [{}]) table_count\n\
+                    \t,sum(case when val != new_val then 1 else 0 end) changed\n\
+                    \t,sum(case when val is not null and new_val is null then 1 else 0 end) to_null\n\
+                    \t,sum(case when val != '' and new_val = '' then 1 else 0 end) to_blank\n\
+                from #{}", query, hash, file_name, table_name, col, table_name, check_name);
+
+            println!("\nupdate check_tracking\n\
+                set  percent_affected = case when table_count > 0 then 100 * (cast(affected as float) / cast(table_count as float)) end\n\
+                    \t,percent_redundance = case when affected > 0 then 100 * ((cast(affected as float) - cast(changed as float)) / cast(affected as float)) end\n\
+                where hash = '{}'", hash);
+
+            println!(
+                "\n/**** ORIGINAL CODE ****/\n{}\n/**** ORIGINAL CODE ****/",
+                query
+            );
+
+            println!(
+                "\nupdate check_tracking\n\
+                set actual_affected = @@rowcount\n\
+                where hash = '{}'\n",
+                hash
+            );
         }
     }
 }
@@ -105,6 +141,7 @@ impl Analyzer {
 impl<'input> TSqlParserListener for Analyzer {
     fn enter_update_statement(&mut self, _ctx: &Update_statementContext) {
         self.update = Some(UpdateStatement::new());
+        //self.update.as_mut().unwrap().start = _ctx.get_start().get_start();
         self.update_count += 1;
         self.set_id_type(IDType::UPDATE_TABLE);
     }
@@ -224,6 +261,9 @@ impl<'input> TSqlParserListener for Analyzer {
     }
 
     fn exit_update_statement(&mut self, _ctx: &Update_statementContext) {
+        let start = _ctx.get_start().get_start();
+        let stop = _ctx.get_stop().get_stop();
+        self.update.as_mut().unwrap().query = _ctx.get_text_from_interval(start, stop);
         self.print_output();
         self.update = None;
     }
