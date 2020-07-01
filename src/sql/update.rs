@@ -2,7 +2,7 @@
 use crate::sql::table::Table;
 
 pub struct UpdateStatement {
-    pub update_table: String,
+    pub update_table: Table,
     pub tables: Vec<Table>,
     pub set_column: Vec<String>,
     pub set_assignment: Vec<String>,
@@ -14,7 +14,7 @@ pub struct UpdateStatement {
 impl UpdateStatement {
     pub fn new() -> UpdateStatement {
         UpdateStatement {
-            update_table: String::new(),
+            update_table: Table::new(String::from("")),
             tables: Vec::new(),
             set_column: Vec::new(),
             set_assignment: Vec::new(),
