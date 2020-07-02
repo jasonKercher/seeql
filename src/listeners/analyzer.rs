@@ -33,6 +33,7 @@ enum State {
 pub struct Analyzer {
     update: Option<UpdateStatement>,
     original_text: String,
+    file_name: String,
     id_type: IDType,
     state: State,
     update_count: u32,
@@ -48,10 +49,11 @@ fn gen_md5(hashme: &str) -> String {
 }
 
 impl Analyzer {
-    pub fn new(verbose: bool, original_text: String) -> Analyzer {
+    pub fn new(verbose: bool, original_text: String, file_name: String) -> Analyzer {
         Analyzer {
             update: None,
             original_text,
+            file_name,
             id_type: IDType::NONE,
             state: State::NONE,
             update_count: 0,
@@ -74,11 +76,12 @@ impl Analyzer {
     }
 
     fn get_text(&self, a: isize, b: isize) -> String {
-        let c = b + 1;
+        let b = b - a + 1;
+
         self.original_text
             .chars()
             .skip(a as usize)
-            .take(c as usize)
+            .take(b as usize)
             .collect()
     }
 
@@ -122,7 +125,6 @@ impl Analyzer {
             let query = str::replace(&self.update.as_ref().unwrap().query, "'", "''");
             let clean_query = query.split_whitespace().collect::<String>();
             let hash = gen_md5(&clean_query);
-            let file_name = "aFile";
 
             println!("\ninsert into check_tracking (query, hash, file_name, table_name, field_name, table_count, affected, changed, to_null, to_blank)\n\
                 select '{}', '{}', '{}', '{}', '{}'\n\
@@ -131,7 +133,7 @@ impl Analyzer {
                     \t,sum(case when val != new_val then 1 else 0 end) changed\n\
                     \t,sum(case when val is not null and new_val is null then 1 else 0 end) to_null\n\
                     \t,sum(case when val != '' and new_val = '' then 1 else 0 end) to_blank\n\
-                from #{}\n", query, hash, file_name, table_name, col, table_name, check_name);
+                from #{}\n", query, hash, self.file_name, table_name, col, table_name, check_name);
 
             println!("update check_tracking\n\
                 set  percent_affected = case when table_count > 0 then 100 * (cast(affected as float) / cast(table_count as float)) end\n\

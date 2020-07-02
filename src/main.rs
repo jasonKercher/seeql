@@ -6,6 +6,8 @@
 extern crate lazy_static;
 extern crate crypto;
 
+use std::env;
+use std::fs;
 use std::io::{self, Read};
 
 use antlr_rust::common_token_stream::CommonTokenStream;
@@ -38,21 +40,43 @@ use listeners::analyzer::Analyzer;
 
 fn main() {
     let mut buffer = String::new();
-    let stdin = io::stdin();
-    let mut handle = stdin.lock();
+    let mut verbose = false;
 
-    handle
-        .read_to_string(&mut buffer)
-        .expect("Failed to read stdin");
+    let args: Vec<String> = env::args().collect();
+
+    let mut files = Vec::new();
+
+    for (i, arg) in args.iter().enumerate() {
+        if i == 0 {
+            continue;
+        }
+
+        if arg == "-v" || arg == "--verbose" {
+            verbose = true;
+        } else {
+            files.push(arg);
+        }
+    }
+
+    let file_name = String::from(if files.is_empty() {
+        let stdin = io::stdin();
+        let mut handle = stdin.lock();
+        handle
+            .read_to_string(&mut buffer)
+            .expect("Failed to read stdin");
+        ""
+    } else {
+        buffer = fs::read_to_string(files[0]).expect("Failed to read file");
+        &files[0]
+    });
 
     let buffer2 = buffer.clone();
 
     let mut _lexer = TSqlLexer::new(Box::new(UpperStream::new(buffer.into())));
     let token_source = CommonTokenStream::new(_lexer);
     let mut parser = TSqlParser::new(Box::new(token_source));
-    let analyzer = Box::new(Analyzer::new(true, buffer2));
+    let analyzer = Box::new(Analyzer::new(verbose, buffer2, file_name));
     parser.add_parse_listener(analyzer);
 
     let _result = parser.tsql_file().expect("parser failed");
 }
-

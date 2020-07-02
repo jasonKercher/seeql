@@ -10,3 +10,4 @@ edition = "2018"
 
 antlr-rust = "0.1"
 lazy_static = "1.4.0"
+rust-crypto = "0.2.36"
