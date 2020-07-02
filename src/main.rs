@@ -70,12 +70,14 @@ fn main() {
         &files[0]
     });
 
-    let buffer2 = buffer.clone();
+    /* This print is actually a hack to avoid leading comments */
+    let query = String::from("print 'seeql invoked here\n\n") + &buffer;
+    let query2 = query.clone();
 
-    let mut _lexer = TSqlLexer::new(Box::new(UpperStream::new(buffer.into())));
+    let mut _lexer = TSqlLexer::new(Box::new(UpperStream::new(query.into())));
     let token_source = CommonTokenStream::new(_lexer);
     let mut parser = TSqlParser::new(Box::new(token_source));
-    let analyzer = Box::new(Analyzer::new(verbose, buffer2, file_name));
+    let analyzer = Box::new(Analyzer::new(verbose, query2, file_name));
     parser.add_parse_listener(analyzer);
 
     let _result = parser.tsql_file().expect("parser failed");
