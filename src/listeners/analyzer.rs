@@ -36,6 +36,7 @@ pub struct Analyzer {
     file_name: String,
     id_type: IDType,
     state: State,
+    location: isize,
     update_count: u32,
     subquery_depth: i32,
     expression_depth: i32,
@@ -56,6 +57,7 @@ impl Analyzer {
             file_name,
             id_type: IDType::NONE,
             state: State::NONE,
+            location: 0,
             update_count: 0,
             subquery_depth: 0,
             expression_depth: 0,
@@ -97,11 +99,13 @@ impl Analyzer {
             let check_name = &format!("check_{}_{}", self.update_count, i);
             let table_name = &self.update.as_ref().unwrap().update_table.name;
 
+            println!("\n/**** BEGIN GENERATED OUTPUT ****/\n");
+
             /*
              * Build Check table
              */
             println!(
-                "\nSELECT {}.{} val, {} new_val",
+                "SELECT {}.{} val, {} new_val",
                 update_table_alias,
                 col,
                 self.update.as_ref().unwrap().set_value[i]
@@ -138,7 +142,7 @@ impl Analyzer {
             println!("update check_tracking\n\
                 set  percent_affected = case when table_count > 0 then 100 * (cast(affected as float) / cast(table_count as float)) end\n\
                     \t,percent_redundance = case when affected > 0 then 100 * ((cast(affected as float) - cast(changed as float)) / cast(affected as float)) end\n\
-                where hash = '{}'", hash);
+                where hash = '{}'\n", hash);
 
             println!(
                 "declare @{}_start datetime = GETDATE()\n\n\
@@ -164,14 +168,33 @@ impl Analyzer {
                 where hash = '{}'\n",
                 check_name, check_name, hash
             );
+
+            println!("/**** END GENERATED OUTPUT ****/\n");
         }
+    }
+
+    fn print_non_update(&self, stop: isize) {
+        println!("{}", self.get_text(self.location, stop));
     }
 }
 
 impl<'input> TSqlParserListener for Analyzer {
+    fn exit_sql_clause(&mut self, _ctx: &Sql_clauseContext) {
+        let stop = _ctx.get_stop().get_stop();
+
+        if self.update.is_some() {
+            let start = _ctx.get_start().get_start();
+            self.update.as_mut().unwrap().query = self.get_text(start, stop);
+            self.print_output();
+            self.update = None;
+        } else {
+            self.print_non_update(stop);
+        }
+
+        self.location = stop + 1;
+    }
     fn enter_update_statement(&mut self, _ctx: &Update_statementContext) {
         self.update = Some(UpdateStatement::new());
-        //self.update.as_mut().unwrap().start = _ctx.get_start().get_start();
         self.update_count += 1;
         self.set_id_type(IDType::UPDATE_TABLE);
     }
@@ -288,14 +311,6 @@ impl<'input> TSqlParserListener for Analyzer {
                     .clone();
             }
         }
-    }
-
-    fn exit_update_statement(&mut self, _ctx: &Update_statementContext) {
-        let start = _ctx.get_start().get_start();
-        let stop = _ctx.get_stop().get_stop();
-        self.update.as_mut().unwrap().query = self.get_text(start, stop);
-        self.print_output();
-        self.update = None;
     }
 
     fn enter_subquery(&mut self, _ctx: &SubqueryContext) {
