@@ -2,6 +2,9 @@ use antlr_rust::parser_rule_context::ParserRuleContext;
 use antlr_rust::token::Token;
 use antlr_rust::tree::{ParseTreeListener, TerminalNode};
 
+use crypto::digest::Digest;
+use crypto::md5::Md5;
+
 //use crate::gen::tsqlparser::*;
 use crate::gen::tsqlparser::*;
 use crate::gen::tsqlparserlistener::TSqlParserListener;
@@ -29,6 +32,7 @@ enum State {
 
 pub struct Analyzer {
     update: Option<UpdateStatement>,
+    original_text: String,
     id_type: IDType,
     state: State,
     update_count: u32,
@@ -37,10 +41,17 @@ pub struct Analyzer {
     verbose: bool,
 }
 
+fn gen_md5(hashme: &str) -> String {
+    let mut sh = Md5::new();
+    sh.input_str(hashme);
+    sh.result_str()
+}
+
 impl Analyzer {
-    pub fn new(verbose: bool) -> Analyzer {
+    pub fn new(verbose: bool, original_text: String) -> Analyzer {
         Analyzer {
             update: None,
+            original_text,
             id_type: IDType::NONE,
             state: State::NONE,
             update_count: 0,
@@ -60,6 +71,15 @@ impl Analyzer {
         if self.subquery_depth == 0 {
             self.id_type = id_type;
         }
+    }
+
+    fn get_text(&self, a: isize, b: isize) -> String {
+        let c = b + 1;
+        self.original_text
+            .chars()
+            .skip(a as usize)
+            .take(c as usize)
+            .collect()
     }
 
     pub fn print_output(&self) {
@@ -99,15 +119,10 @@ impl Analyzer {
             /*
              * Calculate statistics
              */
-            let query = "aQuery";
-            let hash = "aHash";
+            let query = str::replace(&self.update.as_ref().unwrap().query, "'", "''");
+            let clean_query = query.split_whitespace().collect::<String>();
+            let hash = gen_md5(&clean_query);
             let file_name = "aFile";
-
-            println!(
-                "-- START: {}, STOP: {}",
-                self.update.as_ref().unwrap().start,
-                self.update.as_ref().unwrap().stop
-            );
 
             println!("\ninsert into check_tracking (query, hash, file_name, table_name, field_name, table_count, affected, changed, to_null, to_blank)\n\
                 select '{}', '{}', '{}', '{}', '{}'\n\
@@ -116,23 +131,36 @@ impl Analyzer {
                     \t,sum(case when val != new_val then 1 else 0 end) changed\n\
                     \t,sum(case when val is not null and new_val is null then 1 else 0 end) to_null\n\
                     \t,sum(case when val != '' and new_val = '' then 1 else 0 end) to_blank\n\
-                from #{}", query, hash, file_name, table_name, col, table_name, check_name);
+                from #{}\n", query, hash, file_name, table_name, col, table_name, check_name);
 
-            println!("\nupdate check_tracking\n\
+            println!("update check_tracking\n\
                 set  percent_affected = case when table_count > 0 then 100 * (cast(affected as float) / cast(table_count as float)) end\n\
                     \t,percent_redundance = case when affected > 0 then 100 * ((cast(affected as float) - cast(changed as float)) / cast(affected as float)) end\n\
                 where hash = '{}'", hash);
 
             println!(
-                "\n/**** ORIGINAL CODE ****/\n{}\n/**** ORIGINAL CODE ****/",
-                query
+                "declare @{}_start datetime = GETDATE()\n\n\
+                /**** Original Code ****/\n\
+                {}\n\
+                /**** Original Code ****/\n\n\
+                declare @{}_rowcount int = @@rowcount\n\
+                declare @{}_end datetime = GETDATE()\n\
+                declare @{}_duration int = DATEDIFF(s,@{}_start,@{}_end)\n",
+                check_name,
+                self.update.as_ref().unwrap().query,
+                check_name,
+                check_name,
+                check_name,
+                check_name,
+                check_name,
             );
 
             println!(
-                "\nupdate check_tracking\n\
-                set actual_affected = @@rowcount\n\
+                "update check_tracking\n\
+                set actual_affected = @{}_rowcount\n\
+                    \t,duration = @{}_duration\n\
                 where hash = '{}'\n",
-                hash
+                check_name, check_name, hash
             );
         }
     }
@@ -261,9 +289,9 @@ impl<'input> TSqlParserListener for Analyzer {
     }
 
     fn exit_update_statement(&mut self, _ctx: &Update_statementContext) {
-        self.update.as_mut().unwrap().start = _ctx.get_start().get_start();
-        self.update.as_mut().unwrap().stop = _ctx.get_stop().get_stop();
-        //self.update.as_mut().unwrap().query = _ctx.get_text_from_interval();
+        let start = _ctx.get_start().get_start();
+        let stop = _ctx.get_stop().get_stop();
+        self.update.as_mut().unwrap().query = self.get_text(start, stop);
         self.print_output();
         self.update = None;
     }
