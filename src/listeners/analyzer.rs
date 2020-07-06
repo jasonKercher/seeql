@@ -260,12 +260,18 @@ impl<'input> TSqlParserListener for Analyzer {
     }
 
     fn exit_full_table_name(&mut self, _ctx: &Full_table_nameContext) {
+        if self.update.is_none() || self.subquery_depth != 0 {
+            return;
+        }
         let stop = _ctx.get_stop().get_stop();
         let start = _ctx.get_start().get_start();
         self.update.as_mut().unwrap().update_table.name = self.get_text(start, stop);
     }
 
     fn exit_table_name_with_hint(&mut self, _ctx: &Table_name_with_hintContext) {
+        if self.update.is_none() || self.subquery_depth != 0 {
+            return;
+        }
         let stop = _ctx.get_stop().get_stop();
         let start = _ctx.get_start().get_start();
         let new_table = Table::new(self.get_text(start, stop));
@@ -290,7 +296,7 @@ impl<'input> TSqlParserListener for Analyzer {
     }
 
     fn exit_id(&mut self, _ctx: &IdContext) {
-        if self.update.is_none() {
+        if self.update.is_none() || self.subquery_depth != 0 {
             return;
         }
 

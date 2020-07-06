@@ -338,12 +338,15 @@ another_statement
     | create_queue
     | alter_queue
     | execute_statement
+    | kill_statement
     | message_statement
     | security_statement
     | set_statement
     | transaction_statement
     | use_statement
     | setuser_statement
+    | reconfigure_statement
+    | shutdown_statement
     ;
 // https://docs.microsoft.com/en-us/sql/t-sql/statements/alter-application-role-transact-sql
 
@@ -2489,6 +2492,24 @@ backup_service_master_key
          ENCRYPTION BY PASSWORD EQUAL encryption_password=STRING
     ;
 
+kill_statement
+    : KILL (kill_process | kill_query_notification | kill_stats_job)
+    ;
+
+// https://docs.microsoft.com/en-us/sql/t-sql/language-elements/kill-transact-sql
+kill_process
+    : (session_id=(DECIMAL|STRING) | UOW) (WITH STATUSONLY)?
+    ;
+
+// https://docs.microsoft.com/en-us/sql/t-sql/language-elements/kill-query-notification-subscription-transact-sql
+kill_query_notification
+    : QUERY NOTIFICATION SUBSCRIPTION (ALL | subscription_id=DECIMAL)
+    ;
+
+// https://docs.microsoft.com/en-us/sql/t-sql/language-elements/kill-stats-job-transact-sql
+kill_stats_job
+    : STATS JOB job_id=DECIMAL
+    ;
 
 // https://msdn.microsoft.com/en-us/library/ms188332.aspx
 execute_statement
@@ -2658,6 +2679,16 @@ use_statement
 
 setuser_statement
     : SETUSER user=STRING?
+    ;
+
+// https://docs.microsoft.com/en-us/sql/t-sql/language-elements/reconfigure-transact-sql
+reconfigure_statement
+    : RECONFIGURE (WITH OVERRIDE)?
+    ;
+
+// https://docs.microsoft.com/en-us/sql/t-sql/language-elements/shutdown-transact-sql
+shutdown_statement
+    : SHUTDOWN (WITH NOWAIT)?
     ;
 
 dbcc_clause
@@ -2951,7 +2982,7 @@ for_clause
     ;
 
 xml_common_directives
-    : ',' (BINARY_BASE64 | TYPE | ROOT)
+      : ',' (BINARY_BASE64 | TYPE | ROOT ('(' STRING ')')?)
     ;
 
 order_by_expression
@@ -3006,12 +3037,11 @@ udt_method_arguments
 
 // https://docs.microsoft.com/ru-ru/sql/t-sql/queries/select-clause-transact-sql
 asterisk
-    : '*'
-    | table_name '.' asterisk
+    : (table_name '.')? '*'
     ;
 
 column_elem
-    : (table_name '.')? (column_name=id | '$' IDENTITY | '$' ROWGUID) as_column_alias?
+    : ((table_name '.')? (column_name=id | '$' IDENTITY | '$' ROWGUID) | NULL) as_column_alias?
     ;
 
 udt_elem
@@ -3051,7 +3081,7 @@ table_source_item
     | rowset_function             as_table_alias?
     | derived_table              (as_table_alias column_alias_list?)?
     | change_table                as_table_alias
-    | function_call               as_table_alias?
+    | function_call              (as_table_alias column_alias_list?)?
     | LOCAL_ID                    as_table_alias?
     | LOCAL_ID '.' function_call (as_table_alias column_alias_list?)?
     | open_xml
@@ -3126,12 +3156,8 @@ derived_table
     ;
 
 function_call
-    : ranking_windowed_function                         #RANKING_WINDOWED_FUNC
-    | aggregate_windowed_function                       #AGGREGATE_WINDOWED_FUNC
-    | analytic_windowed_function                        #ANALYTIC_WINDOWED_FUNC
-    | scalar_function_name '(' expression_list? ')'     #SCALAR_FUNCTION
-    // https://msdn.microsoft.com/en-us/library/ms173784.aspx
-    | BINARY_CHECKSUM '(' '*' ')'                       #BINARY_CHECKSUM
+    : // https://msdn.microsoft.com/en-us/library/ms173784.aspx
+     BINARY_CHECKSUM '(' '*' ')'                       #BINARY_CHECKSUM
     // https://msdn.microsoft.com/en-us/library/hh231076.aspx
     // https://msdn.microsoft.com/en-us/library/ms187928.aspx
     | CAST '(' expression AS data_type ')'              #CAST
@@ -3174,6 +3200,11 @@ function_call
     | xml_data_type_methods                             #XML_DATA_TYPE_FUNC
     // https://docs.microsoft.com/en-us/sql/t-sql/functions/logical-functions-iif-transact-sql
     | IIF '(' search_condition ',' expression ',' expression ')'   #IFF
+    | ranking_windowed_function                         #RANKING_WINDOWED_FUNC
+    | aggregate_windowed_function                       #AGGREGATE_WINDOWED_FUNC
+    | analytic_windowed_function                        #ANALYTIC_WINDOWED_FUNC
+    | scalar_function_name '(' expression_list? ')'     #SCALAR_FUNCTION
+    | STRING_AGG '(' expr=expression ',' separator=expression ')' (WITHIN GROUP '(' order_by_clause ')')?  #STRINGAGG
     ;
 
 xml_data_type_methods
@@ -3471,34 +3502,7 @@ scalar_function_name
     | RIGHT
     | LEFT
     | BINARY_CHECKSUM
-    | ABS
-    | ASCII
-    | CEILING
-    | CHAR
-    | CHARINDEX
     | CHECKSUM
-    | DATALENGTH
-    | DAY
-    | FLOOR
-    | ISDATE
-    | ISNUMERIC
-    | LEN
-    | LOWER
-    | LTRIM
-    | MONTH
-    | NCHAR
-    | PATINDEX
-    | RAND
-    | REPLACE
-    | ROUND
-    | RTRIM
-    | SIGN
-    | SPACE
-    | STR
-    | SUBSTRING
-    | UPPER
-    | USER_NAME
-    | YEAR
     ;
 
 begin_conversation_timer
@@ -3699,6 +3703,7 @@ simple_id
     | CRYPTOGRAPHIC
     | CURSOR_CLOSE_ON_COMMIT
     | CURSOR_DEFAULT
+    | DATA
     | DATA_COMPRESSION
     | DATE_CORRELATION_OPTIMIZATION
     | DATEADD
@@ -3967,12 +3972,14 @@ simple_id
     | SECONDARY_ROLE
     | SECONDS
     | SECRET
+    | SECURITY
     | SECURITY_LOG
     | SEEDING_MODE
     | SELF
     | SEMI_SENSITIVE
     | SEND
     | SENT
+    | SEQUENCE
     | SERIALIZABLE
     | SERVER
     | SESSION_TIMEOUT
@@ -3989,6 +3996,7 @@ simple_id
     | SNAPSHOT
     | SOURCE
     | SPATIAL_WINDOW_MAX_CELLS
+    | SPLIT
     | STANDBY
     | START
     | START_DATE
@@ -3999,6 +4007,7 @@ simple_id
     | STDEV
     | STDEVP
     | STOPLIST
+    | STRING_AGG
     | STUFF
     | SUBJECT
     | SUM
@@ -4006,6 +4015,7 @@ simple_id
     | SYMMETRIC
     | SYNCHRONOUS_COMMIT
     | SYNONYM
+    | SYSTEM
     | TAKE
     | TARGET
     | TARGET_RECOVERY_TIME
