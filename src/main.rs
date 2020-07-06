@@ -71,7 +71,7 @@ fn main() {
     });
 
     /* This print is actually a hack to avoid leading comments */
-    let query = String::from("print 'seeql invoked here\n\n") + &buffer;
+    let query = String::from("_no_op_label_:\n\n") + &buffer;
     let query2 = query.clone();
 
     let mut _lexer = TSqlLexer::new(Box::new(UpperStream::new(query.into())));

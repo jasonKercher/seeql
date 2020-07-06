@@ -1,4 +1,5 @@
 # Personal notes
+*.sql
 *.txt 
 .gdb_history
  
