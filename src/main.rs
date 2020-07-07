@@ -13,9 +13,13 @@ use std::io::{self, Read};
 use antlr_rust::common_token_stream::CommonTokenStream;
 
 mod antlr {
+    pub mod errorlistener;
+    pub mod errorstrategy;
     pub mod upperstream;
 }
 
+use antlr::errorlistener::SeeqlErrorListener;
+use antlr::errorstrategy::SeeqlErrorStrategy;
 use antlr::upperstream::UpperStream;
 
 mod gen {
@@ -71,12 +75,17 @@ fn main() {
     });
 
     /* This print is actually a hack to avoid leading comments */
-    let query = String::from("_no_op_label_:\n\n") + &buffer;
+    let query = String::from("_no_op_label_:\n") + &buffer;
     let query2 = query.clone();
 
-    let mut _lexer = TSqlLexer::new(Box::new(UpperStream::new(query.into())));
-    let token_source = CommonTokenStream::new(_lexer);
+    let mut lexer = TSqlLexer::new(Box::new(UpperStream::new(query.into())));
+    lexer.remove_error_listeners();
+
+    //let error_listener = Box::new(SeeqlErrorListener {});
+    lexer.add_error_listener(Box::new(SeeqlErrorListener {}));
+    let token_source = CommonTokenStream::new(lexer);
     let mut parser = TSqlParser::new(Box::new(token_source));
+    parser.set_error_strategy(Box::new(SeeqlErrorStrategy::new()));
     let analyzer = Box::new(Analyzer::new(verbose, query2, file_name));
     parser.add_parse_listener(analyzer);
 
