@@ -75,7 +75,10 @@ fn main() {
     });
 
     /* This print is actually a hack to avoid leading comments */
-    let query = String::from("_no_op_label_:\n") + &buffer;
+    let mut query = String::from("_no_op_label_:\n");
+    let hack_length = query.len();
+
+    query += &buffer;
     let query2 = query.clone();
 
     let mut lexer = TSqlLexer::new(Box::new(UpperStream::new(query.into())));
@@ -86,7 +89,12 @@ fn main() {
     let token_source = CommonTokenStream::new(lexer);
     let mut parser = TSqlParser::new(Box::new(token_source));
     parser.set_error_strategy(Box::new(SeeqlErrorStrategy::new()));
-    let analyzer = Box::new(Analyzer::new(verbose, query2, file_name));
+    let analyzer = Box::new(Analyzer::new(
+        verbose,
+        query2,
+        file_name,
+        hack_length as isize,
+    ));
     parser.add_parse_listener(analyzer);
 
     let _result = parser.tsql_file().expect("parser failed");

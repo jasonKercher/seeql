@@ -50,14 +50,19 @@ fn gen_md5(hashme: &str) -> String {
 }
 
 impl Analyzer {
-    pub fn new(verbose: bool, original_text: String, file_name: String) -> Analyzer {
+    pub fn new(
+        verbose: bool,
+        original_text: String,
+        file_name: String,
+        location: isize,
+    ) -> Analyzer {
         Analyzer {
             update: None,
             original_text,
             file_name,
             id_type: IDType::NONE,
             state: State::NONE,
-            location: 0,
+            location,
             update_count: 0,
             subquery_depth: 0,
             expression_depth: 0,
@@ -174,7 +179,9 @@ impl Analyzer {
     }
 
     fn print_non_update(&self, stop: isize) {
-        println!("{}", self.get_text(self.location, stop));
+        if self.location < stop {
+            print!("{}", self.get_text(self.location, stop));
+        }
     }
 }
 
