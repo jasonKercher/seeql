@@ -5,8 +5,6 @@ use antlr_rust::errors::*;
 use antlr_rust::parser::Parser;
 use antlr_rust::token::{OwningToken, Token};
 
-pub struct SeeqlErrorStrategy(DefaultErrorStrategy);
-
 /* Copied from antlr_rust::util */
 fn escape_whitespaces(data: impl Borrow<str>, escape_spaces: bool) -> String {
     let data = data.borrow();
@@ -20,6 +18,12 @@ fn escape_whitespaces(data: impl Borrow<str>, escape_spaces: bool) -> String {
     });
     res
 }
+
+fn escape_wsand_quote(&self, s: &str) -> String {
+    format!("'{}'", escape_whitespaces(s, false))
+}
+
+pub struct SeeqlErrorStrategy(DefaultErrorStrategy);
 
 impl SeeqlErrorStrategy {
     pub fn new() -> SeeqlErrorStrategy {
@@ -35,11 +39,7 @@ impl SeeqlErrorStrategy {
 
     fn get_token_error_display(&self, t: &dyn Token) -> String {
         let text = t.get_text();
-        self.escape_wsand_quote(text)
-    }
-
-    fn escape_wsand_quote(&self, s: &str) -> String {
-        format!("'{}'", escape_whitespaces(s, false))
+        escape_wsand_quote(text)
     }
 }
 
