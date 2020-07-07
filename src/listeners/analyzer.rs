@@ -187,6 +187,11 @@ impl Analyzer {
 }
 
 impl<'input> TSqlParserListener for Analyzer {
+    fn exit_tsql_file(&mut self, _ctx: &Tsql_fileContext) {
+        /* Add new line to the end of the output */
+        println!();
+    }
+
     fn exit_sql_clause(&mut self, _ctx: &Sql_clauseContext) {
         let stop = _ctx.get_stop().get_stop();
 
