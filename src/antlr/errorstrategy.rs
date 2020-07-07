@@ -19,7 +19,7 @@ fn escape_whitespaces(data: impl Borrow<str>, escape_spaces: bool) -> String {
     res
 }
 
-fn escape_wsand_quote(&self, s: &str) -> String {
+fn escape_wsand_quote(s: &str) -> String {
     format!("'{}'", escape_whitespaces(s, false))
 }
 
