@@ -10,10 +10,11 @@ pub struct UpdateStatement {
     pub from_clause: String,
     pub where_clause: String,
     pub query: String,
+    pub lineno: isize,
 }
 
 impl UpdateStatement {
-    pub fn new() -> UpdateStatement {
+    pub fn new(lineno: isize) -> UpdateStatement {
         UpdateStatement {
             update_table: Table::new(String::from("")),
             tables: Vec::new(),
@@ -23,6 +24,7 @@ impl UpdateStatement {
             from_clause: String::new(),
             where_clause: String::new(),
             query: String::new(),
+            lineno,
         }
     }
 }
