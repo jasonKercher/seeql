@@ -9,6 +9,7 @@ extern crate crypto;
 use std::env;
 use std::fs;
 use std::io::{self, Read};
+use std::path::Path;
 
 use antlr_rust::common_token_stream::CommonTokenStream;
 
@@ -74,6 +75,11 @@ fn main() {
         &files[0]
     });
 
+    let basename = match Path::new(&file_name).file_name() {
+        Some(x) => String::from(x.to_str().unwrap()),
+        None => file_name,
+    };
+
     /* This print is actually a hack to avoid leading comments */
     let mut query = String::from("_no_op_label_:\n");
     let hack_length = query.len();
@@ -92,7 +98,7 @@ fn main() {
     let analyzer = Box::new(Analyzer::new(
         verbose,
         query2,
-        file_name,
+        basename,
         hack_length as isize,
     ));
     parser.add_parse_listener(analyzer);
