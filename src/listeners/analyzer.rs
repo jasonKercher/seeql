@@ -93,19 +93,23 @@ impl Analyzer {
     }
 
     pub fn print_output(&self) {
+        let query = str::replace(&self.update.as_ref().unwrap().query, "'", "''");
+        let lineno = self.update.as_ref().unwrap().lineno - 1;
+        let clean_query = query.split_whitespace().collect::<String>();
+        let hash = gen_md5(&clean_query);
+
+        let update_table_alias = if self.update.as_ref().unwrap().update_table.alias.is_empty() {
+            &self.update.as_ref().unwrap().update_table.name
+        } else {
+            &self.update.as_ref().unwrap().update_table.alias
+        };
+
+        let check_name = &format!("check_{}", self.update_count);
+        let table_name = &self.update.as_ref().unwrap().update_table.name;
+
+        println!("\n/**** BEGIN GENERATED OUTPUT ****/\n");
+
         for (i, col) in self.update.as_ref().unwrap().set_column.iter().enumerate() {
-            let update_table_alias = if self.update.as_ref().unwrap().update_table.alias.is_empty()
-            {
-                &self.update.as_ref().unwrap().update_table.name
-            } else {
-                &self.update.as_ref().unwrap().update_table.alias
-            };
-
-            let check_name = &format!("check_{}_{}", self.update_count, i);
-            let table_name = &self.update.as_ref().unwrap().update_table.name;
-
-            println!("\n/**** BEGIN GENERATED OUTPUT ****/\n");
-
             /*
              * Build Check table
              */
@@ -116,7 +120,7 @@ impl Analyzer {
                 self.update.as_ref().unwrap().set_value[i]
             );
 
-            println!("INTO #{}", check_name);
+            println!("INTO #{}_{}", check_name, i);
 
             if self.update.as_ref().unwrap().from_clause.is_empty() {
                 println!("FROM {}", table_name);
@@ -131,52 +135,48 @@ impl Analyzer {
             /*
              * Calculate statistics
              */
-            let query = str::replace(&self.update.as_ref().unwrap().query, "'", "''");
-            let lineno = self.update.as_ref().unwrap().lineno - 1;
-            let clean_query = query.split_whitespace().collect::<String>();
-            let hash = gen_md5(&clean_query);
-
-            println!("\ninsert into check_tracking (query, hash, file_name, line, table_name, field_name, table_count, affected, changed, to_null, to_blank)\n\
+            println!("\ninsert into check_tracking (query, hash, file_name, line, table_name, field_name, affected, table_count, changed, to_null, to_blank)\n\
                 select '{}', '{}', '{}', {}, '{}', '{}'\n\
                     \t,count(*) affected\n\
                     \t,(select count(*) from {}) table_count\n\
                     \t,sum(case when val != new_val then 1 else 0 end) changed\n\
                     \t,sum(case when val is not null and new_val is null then 1 else 0 end) to_null\n\
                     \t,sum(case when val != '' and new_val = '' then 1 else 0 end) to_blank\n\
-                from #{}\n", query, hash, self.file_name, lineno, table_name, col, table_name, check_name);
-
-            println!("update check_tracking\n\
-                set  percent_affected = case when table_count > 0 then 100 * (cast(affected as float) / cast(table_count as float)) end\n\
-                    \t,percent_redundance = case when affected > 0 then 100 * ((cast(affected as float) - cast(changed as float)) / cast(affected as float)) end\n\
-                where hash = '{}'\n", hash);
-
-            println!(
-                "declare @{}_start datetime = GETDATE()\n\n\
-                /**** Original Code ****/\n\
-                {}\n\
-                /**** Original Code ****/\n\n\
-                declare @{}_rowcount int = @@rowcount\n\
-                declare @{}_end datetime = GETDATE()\n\
-                declare @{}_duration int = DATEDIFF(s,@{}_start,@{}_end)\n",
-                check_name,
-                self.update.as_ref().unwrap().query,
-                check_name,
-                check_name,
-                check_name,
-                check_name,
-                check_name,
-            );
-
-            println!(
-                "update check_tracking\n\
-                set actual_affected = @{}_rowcount\n\
-                    \t,duration = @{}_duration\n\
-                where hash = '{}'\n",
-                check_name, check_name, hash
-            );
-
-            println!("/**** END GENERATED OUTPUT ****/\n");
+                from #{}_{}\n", query, hash, self.file_name, lineno, table_name, col, table_name, check_name, i);
         }
+
+        println!("update check_tracking\n\
+            set  percent_affected = case when table_count > 0 then 100 * (cast(affected as float) / cast(table_count as float)) end\n\
+                \t,percent_redundance = case when affected > 0 then 100 * ((cast(affected as float) - cast(changed as float)) / cast(affected as float)) end\n\
+            where hash = '{}'\n", hash);
+
+        println!(
+            "declare @{}_start datetime = GETDATE()\n\n\
+            /**** Original Code ****/\n\
+            {}\n\
+            /**** Original Code ****/\n\n\
+            declare @{}_rowcount int = @@rowcount\n\
+            declare @{}_end datetime = GETDATE()\n\
+            declare @{}_duration int = DATEDIFF(s,@{}_start,@{}_end)\n",
+            check_name,
+            self.update.as_ref().unwrap().query,
+            check_name,
+            check_name,
+            check_name,
+            check_name,
+            check_name,
+        );
+
+        println!(
+            "update check_tracking\n\
+            set actual_affected = @{}_rowcount\n\
+                \t,duration = @{}_duration\n\
+                \t,exec_datetime = getdate()\n\
+            where hash = '{}'\n",
+            check_name, check_name, hash
+        );
+
+        println!("/**** END GENERATED OUTPUT ****/\n");
     }
 
     fn print_non_update(&self, stop: isize) {
