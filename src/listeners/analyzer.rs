@@ -136,7 +136,7 @@ impl Analyzer {
             let clean_query = query.split_whitespace().collect::<String>();
             let hash = gen_md5(&clean_query);
 
-            println!("\ninsert into check_tracking (query, hash, file_name, lineno, table_name, field_name, table_count, affected, changed, to_null, to_blank)\n\
+            println!("\ninsert into check_tracking (query, hash, file_name, line, table_name, field_name, table_count, affected, changed, to_null, to_blank)\n\
                 select '{}', '{}', '{}', {}, '{}', '{}'\n\
                     \t,count(*) affected\n\
                     \t,(select count(*) from {}) table_count\n\
