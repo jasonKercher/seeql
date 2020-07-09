@@ -106,10 +106,13 @@ impl Analyzer {
 
         let check_name = &format!("check_{}", self.update_count);
         let table_name = &self.update.as_ref().unwrap().update_table.name;
+        let table_name_pure = table_name.replace(&['[', ']', '\''][..], "");
 
         println!("\n/**** BEGIN GENERATED OUTPUT ****/\n");
 
         for (i, col) in self.update.as_ref().unwrap().set_column.iter().enumerate() {
+            let col_pure = col.replace(&['[', ']', '\''][..], "");
+
             /*
              * Build Check table
              */
@@ -135,17 +138,17 @@ impl Analyzer {
             /*
              * Calculate statistics
              */
-            println!("\ninsert into check_tracking (query, hash, file_name, line, table_name, field_name, affected, table_count, changed, to_null, to_blank)\n\
+            println!("\ninsert into _check_ (query, hash, file_name, line, table_name, field_name, affected, table_count, changed, to_null, to_blank)\n\
                 select '{}', '{}', '{}', {}, '{}', '{}'\n\
                     \t,count(*) affected\n\
                     \t,(select count(*) from {}) table_count\n\
                     \t,sum(case when val != new_val then 1 else 0 end) changed\n\
                     \t,sum(case when val is not null and new_val is null then 1 else 0 end) to_null\n\
                     \t,sum(case when val != '' and new_val = '' then 1 else 0 end) to_blank\n\
-                from #{}_{}\n", query, hash, self.file_name, lineno, table_name, col, table_name, check_name, i);
+                from #{}_{}\n", query, hash, self.file_name, lineno, table_name_pure, col_pure, table_name, check_name, i);
         }
 
-        println!("update check_tracking\n\
+        println!("update _check_\n\
             set  percent_affected = case when table_count > 0 then 100 * (cast(affected as float) / cast(table_count as float)) end\n\
                 \t,percent_redundance = case when affected > 0 then 100 * ((cast(affected as float) - cast(changed as float)) / cast(affected as float)) end\n\
             where hash = '{}'\n", hash);
@@ -168,7 +171,7 @@ impl Analyzer {
         );
 
         println!(
-            "update check_tracking\n\
+            "update _check_\n\
             set actual_affected = @{}_rowcount\n\
                 \t,duration = @{}_duration\n\
                 \t,exec_datetime = getdate()\n\
