@@ -58,6 +58,30 @@ fn main() {
 
         if arg == "-v" || arg == "--verbose" {
             verbose = true;
+        } else if arg == "--create" {
+            println!(
+                "if object_id('_check_', 'U') is NULL\n\
+                    \tcreate table _check_ (\n\
+                        \t\t query              varchar(max)\n\
+                        \t\t,hash               varchar(50)\n\
+                        \t\t,file_name          varchar(100)\n\
+                        \t\t,line               int\n\
+                        \t\t,table_name         varchar(50)\n\
+                        \t\t,field_name         varchar(50)\n\
+                        \t\t,table_count        int\n\
+                        \t\t,affected           int\n\
+                        \t\t,actual_affected    int\n\
+                        \t\t,percent_affected   float\n\
+                        \t\t,changed            int\n\
+                        \t\t,percent_redundance float\n\
+                        \t\t,to_null            int\n\
+                        \t\t,to_blank           int\n\
+                        \t\t,duration           int\n\
+                        \t\t,exec_datetime      datetime\n\
+                        \t\t,query_id           int not null identity(1, 1)\n\
+                    \t);"
+            );
+            std::process::exit(0);
         } else {
             files.push(arg);
         }
