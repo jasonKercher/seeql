@@ -110,7 +110,10 @@ impl Analyzer {
 
         println!("\n/**** BEGIN GENERATED OUTPUT ****/\n");
 
-        println!("\ndeclare @check_max_id int = isnull((select max(query_id) from _check_), 0)");
+        println!(
+            "\ndeclare @{}_max_id int = isnull((select max(query_id) from _check_), 0)",
+            check_name
+        );
 
         for (i, col) in self.update.as_ref().unwrap().set_column.iter().enumerate() {
             let col_pure = col.replace(&['[', ']', '\''][..], "");
@@ -153,7 +156,7 @@ impl Analyzer {
         println!("update _check_\n\
             set  percent_affected = case when table_count > 0 then 100 * (cast(affected as float) / cast(table_count as float)) end\n\
                 \t,percent_redundance = case when affected > 0 then 100 * ((cast(affected as float) - cast(changed as float)) / cast(affected as float)) end\n\
-            where hash = '{}' and query_id > @check_max_id\n", hash);
+            where hash = '{}' and query_id > @{}_max_id\n", hash, check_name);
 
         println!(
             "declare @{}_start datetime = GETDATE()\n\n\
@@ -177,8 +180,8 @@ impl Analyzer {
             set actual_affected = @{}_rowcount\n\
                 \t,duration = @{}_duration\n\
                 \t,exec_datetime = getdate()\n\
-            where hash = '{}' and query_id > @check_max_id\n",
-            check_name, check_name, hash
+            where hash = '{}' and query_id > @{}_max_id\n",
+            check_name, check_name, hash, check_name
         );
 
         println!("/**** END GENERATED OUTPUT ****/\n");
