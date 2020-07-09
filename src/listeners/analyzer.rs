@@ -38,6 +38,7 @@ pub struct Analyzer {
     state: State,
     location: isize,
     update_count: u32,
+    logic_depth: i32,
     subquery_depth: i32,
     expression_depth: i32,
     verbose: bool,
@@ -64,6 +65,7 @@ impl Analyzer {
             state: State::NONE,
             location,
             update_count: 0,
+            logic_depth: 0,
             subquery_depth: 0,
             expression_depth: 0,
             verbose,
@@ -216,6 +218,9 @@ impl<'input> TSqlParserListener for Analyzer {
     }
 
     fn enter_update_statement(&mut self, _ctx: &Update_statementContext) {
+        if self.logic_depth != 0 {
+            return;
+        }
         let lineno = _ctx.get_start().get_line();
         self.update = Some(UpdateStatement::new(lineno));
         self.update_count += 1;
@@ -353,6 +358,14 @@ impl<'input> TSqlParserListener for Analyzer {
                     .clone();
             }
         }
+    }
+
+    fn enter_if_statement(&mut self, _ctx: &If_statementContext) {
+        self.logic_depth += 1;
+    }
+
+    fn exit_if_statement(&mut self, _ctx: &If_statementContext) {
+        self.logic_depth -= 1;
     }
 
     fn enter_subquery(&mut self, _ctx: &SubqueryContext) {
