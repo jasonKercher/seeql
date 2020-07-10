@@ -73,13 +73,13 @@ impl Analyzer {
     }
 
     fn set_state(&mut self, state: State) {
-        if self.subquery_depth == 0 {
+        if self.update.is_some() && self.subquery_depth == 0 {
             self.state = state;
         }
     }
 
     fn set_id_type(&mut self, id_type: IDType) {
-        if self.subquery_depth == 0 {
+        if self.update.is_some() && self.subquery_depth == 0 {
             self.id_type = id_type;
         }
     }
@@ -124,7 +124,7 @@ impl Analyzer {
              * Build Check table
              */
             println!(
-                "SELECT {}.{} val, {} new_val",
+                "\nSELECT {}.{} val, {} new_val",
                 update_table_alias,
                 col,
                 self.update.as_ref().unwrap().set_value[i]
@@ -228,9 +228,7 @@ impl<'input> TSqlParserListener for Analyzer {
     }
 
     fn enter_update_elem(&mut self, _ctx: &Update_elemContext) {
-        if self.update.is_some() {
-            self.set_id_type(IDType::SET_COLUMN);
-        }
+        self.set_id_type(IDType::SET_COLUMN);
     }
 
     fn exit_full_column_name(&mut self, _ctx: &Full_column_nameContext) {
@@ -271,9 +269,7 @@ impl<'input> TSqlParserListener for Analyzer {
     }
 
     fn enter_table_sources(&mut self, _ctx: &Table_sourcesContext) {
-        if self.update.is_some() {
-            self.set_state(State::FROM);
-        }
+        self.set_state(State::FROM);
     }
 
     fn exit_table_sources(&mut self, _ctx: &Table_sourcesContext) {
@@ -281,9 +277,7 @@ impl<'input> TSqlParserListener for Analyzer {
     }
 
     fn enter_table_name_with_hint(&mut self, _ctx: &Table_name_with_hintContext) {
-        if self.update.is_some() {
-            self.set_id_type(IDType::TABLE_NAME);
-        }
+        self.set_id_type(IDType::TABLE_NAME);
     }
 
     fn exit_full_table_name(&mut self, _ctx: &Full_table_nameContext) {
@@ -306,16 +300,16 @@ impl<'input> TSqlParserListener for Analyzer {
     }
 
     fn enter_table_alias(&mut self, _ctx: &Table_aliasContext) {
-        if self.update.is_some() {
-            self.set_id_type(IDType::TABLE_ALIAS);
-        }
+        self.set_id_type(IDType::TABLE_ALIAS);
+    }
+
+    fn exit_table_alias(&mut self, _ctx: &Table_aliasContext) {
+        self.set_id_type(IDType::NONE);
     }
 
     fn enter_search_condition_list(&mut self, _ctx: &Search_condition_listContext) {
-        if self.update.is_some() {
-            self.set_state(State::CONDITION);
-            self.set_id_type(IDType::NONE);
-        }
+        self.set_state(State::CONDITION);
+        self.set_id_type(IDType::NONE);
     }
 
     fn exit_search_condition_list(&mut self, _ctx: &Search_condition_listContext) {
@@ -336,7 +330,7 @@ impl<'input> TSqlParserListener for Analyzer {
         //} else if self.id_type == IDType::TABLE_NAME {
         //    let new_table = Table::new(value);
         //    self.update.as_mut().unwrap().tables.push(new_table);
-        } else if self.id_type == IDType::TABLE_ALIAS {
+        } else if self.id_type == IDType::TABLE_ALIAS && self.state == State::FROM {
             self.update
                 .as_mut()
                 .unwrap()
@@ -345,9 +339,19 @@ impl<'input> TSqlParserListener for Analyzer {
                 .unwrap()
                 .alias = value.clone();
 
-            if self.update.as_ref().unwrap().update_table.name == value
-                || self.update.as_ref().unwrap().tables.last().unwrap().name
-                    == self.update.as_ref().unwrap().update_table.name
+            let update_table_name = self.update.as_ref().unwrap().update_table.name.as_str();
+
+            if update_table_name.to_uppercase() == value.to_uppercase()
+                || update_table_name.to_uppercase()
+                    == self
+                        .update
+                        .as_ref()
+                        .unwrap()
+                        .tables
+                        .last()
+                        .unwrap()
+                        .name
+                        .to_uppercase()
             {
                 self.update.as_mut().unwrap().update_table.alias = value;
                 self.update.as_mut().unwrap().update_table.name = self
