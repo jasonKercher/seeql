@@ -372,6 +372,13 @@ impl<'input> TSqlParserListener for Analyzer {
     }
 
     fn enter_subquery(&mut self, _ctx: &SubqueryContext) {
+        if self.subquery_depth == 0 && self.state == State::FROM {
+            self.update
+                .as_mut()
+                .unwrap()
+                .tables
+                .push(Table::new(String::from("subquery")));
+        }
         self.subquery_depth += 1;
     }
 
