@@ -345,7 +345,10 @@ impl<'input> TSqlParserListener for Analyzer {
                 .unwrap()
                 .alias = value.clone();
 
-            if self.update.as_ref().unwrap().update_table.name == value {
+            if self.update.as_ref().unwrap().update_table.name == value
+                || self.update.as_ref().unwrap().tables.last().unwrap().name
+                    == self.update.as_ref().unwrap().update_table.name
+            {
                 self.update.as_mut().unwrap().update_table.alias = value;
                 self.update.as_mut().unwrap().update_table.name = self
                     .update
