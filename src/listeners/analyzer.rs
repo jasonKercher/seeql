@@ -108,6 +108,7 @@ impl Analyzer {
 
         let check_name = &format!("check_{}", self.update_count);
         let table_name = &self.update.as_ref().unwrap().update_table.name;
+        let table_query = &self.update.as_ref().unwrap().update_table.query;
         let table_name_pure = table_name.replace(&['[', ']', '\''][..], "");
 
         println!("\n/**** BEGIN GENERATED OUTPUT ****/\n");
@@ -152,7 +153,7 @@ impl Analyzer {
                     \t,sum(case when val != new_val then 1 else 0 end) changed\n\
                     \t,sum(case when val is not null and new_val is null then 1 else 0 end) to_null\n\
                     \t,sum(case when val != '' and new_val = '' then 1 else 0 end) to_blank\n\
-                from #{}_{}\n", query, hash, self.file_name, lineno, table_name_pure, col_pure, table_name, check_name, i);
+                from #{}_{}\n", query, hash, self.file_name, lineno, table_name_pure, col_pure, table_query, check_name, i);
         }
 
         println!("update _check_\n\
@@ -323,13 +324,8 @@ impl<'input> TSqlParserListener for Analyzer {
 
         let value = String::from(_ctx.get_start().get_text());
 
-        //if self.id_type == IDType::UPDATE_TABLE {
-        //    self.update.as_mut().unwrap().update_table.name = value;
         if self.id_type == IDType::SET_COLUMN {
             self.update.as_mut().unwrap().set_column.push(value);
-        //} else if self.id_type == IDType::TABLE_NAME {
-        //    let new_table = Table::new(value);
-        //    self.update.as_mut().unwrap().tables.push(new_table);
         } else if self.id_type == IDType::TABLE_ALIAS && self.state == State::FROM {
             self.update
                 .as_mut()
@@ -363,6 +359,15 @@ impl<'input> TSqlParserListener for Analyzer {
                     .unwrap()
                     .name
                     .clone();
+                self.update.as_mut().unwrap().update_table.query = self
+                    .update
+                    .as_ref()
+                    .unwrap()
+                    .tables
+                    .last()
+                    .unwrap()
+                    .query
+                    .clone();
             }
         }
     }
@@ -388,6 +393,18 @@ impl<'input> TSqlParserListener for Analyzer {
 
     fn exit_subquery(&mut self, _ctx: &SubqueryContext) {
         self.subquery_depth -= 1;
+        if self.subquery_depth == 0 && self.state == State::FROM {
+            let stop = _ctx.get_stop().get_stop();
+            let start = _ctx.get_start().get_start();
+            let subquery = self.get_text(start, stop);
+            self.update
+                .as_mut()
+                .unwrap()
+                .tables
+                .last_mut()
+                .unwrap()
+                .query = subquery;
+        }
     }
 }
 
