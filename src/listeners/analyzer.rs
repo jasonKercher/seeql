@@ -207,8 +207,8 @@ impl<'input> TSqlParserListener for Analyzer {
         let stop = _ctx.get_stop().get_stop();
 
         if self.update.is_some() {
-            let start = _ctx.get_start().get_start();
-            self.update.as_mut().unwrap().query = self.get_text(start, stop);
+            //let start = _ctx.get_start().get_start();
+            self.update.as_mut().unwrap().query = self.get_text(self.location, stop);
             self.print_output();
             self.update = None;
         } else {
