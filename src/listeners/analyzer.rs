@@ -149,7 +149,7 @@ impl Analyzer {
             println!("\ninsert into _check_ (query, hash, file_name, line, table_name, field_name, affected, table_count, changed, to_null, to_blank)\n\
                 select '{}', '{}', '{}', {}, '{}', '{}'\n\
                     \t,count(*) affected\n\
-                    \t,(select count(*) from {}) table_count\n\
+                    \t,(select count(*) from {} x) table_count\n\
                     \t,sum(case when val != new_val then 1 else 0 end) changed\n\
                     \t,sum(case when val is not null and new_val is null then 1 else 0 end) to_null\n\
                     \t,sum(case when val != '' and new_val = '' then 1 else 0 end) to_blank\n\
