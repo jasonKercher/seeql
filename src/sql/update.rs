@@ -10,6 +10,7 @@ pub struct UpdateStatement {
     pub from_clause: String,
     pub where_clause: String,
     pub query: String,
+    pub comments: String,
     pub lineno: isize,
 }
 
@@ -23,6 +24,7 @@ impl UpdateStatement {
             set_value: Vec::new(),
             from_clause: String::new(),
             where_clause: String::new(),
+            comments: String::new(),
             query: String::new(),
             lineno,
         }

@@ -99,6 +99,10 @@ impl Analyzer {
         let lineno = self.update.as_ref().unwrap().lineno - 1;
         let clean_query = query.split_whitespace().collect::<String>();
         let hash = gen_md5(&clean_query);
+        let check_name = &format!("check_{}", self.update_count);
+        let table_name = &self.update.as_ref().unwrap().update_table.name;
+        let table_query = &self.update.as_ref().unwrap().update_table.query;
+        let table_name_pure = table_name.replace(&['[', ']', '\''][..], "");
 
         let update_table_alias = if self.update.as_ref().unwrap().update_table.alias.is_empty() {
             &self.update.as_ref().unwrap().update_table.name
@@ -106,12 +110,9 @@ impl Analyzer {
             &self.update.as_ref().unwrap().update_table.alias
         };
 
-        let check_name = &format!("check_{}", self.update_count);
-        let table_name = &self.update.as_ref().unwrap().update_table.name;
-        let table_query = &self.update.as_ref().unwrap().update_table.query;
-        let table_name_pure = table_name.replace(&['[', ']', '\''][..], "");
+        println!("{}", self.update.as_ref().unwrap().comments);
 
-        println!("\n/**** BEGIN GENERATED OUTPUT ****/\n");
+        println!("/**** BEGIN GENERATED OUTPUT ****/");
 
         println!(
             "\ndeclare @{}_max_id int = isnull((select max(query_id) from _check_), 0)",
@@ -169,13 +170,7 @@ impl Analyzer {
             declare @{}_rowcount int = @@rowcount\n\
             declare @{}_end datetime = GETDATE()\n\
             declare @{}_duration int = DATEDIFF(s,@{}_start,@{}_end)\n",
-            check_name,
-            self.update.as_ref().unwrap().query,
-            check_name,
-            check_name,
-            check_name,
-            check_name,
-            check_name,
+            check_name, query, check_name, check_name, check_name, check_name, check_name,
         );
 
         println!(
@@ -207,8 +202,9 @@ impl<'input> TSqlParserListener for Analyzer {
         let stop = _ctx.get_stop().get_stop();
 
         if self.update.is_some() {
-            //let start = _ctx.get_start().get_start();
-            self.update.as_mut().unwrap().query = self.get_text(self.location, stop);
+            let start = _ctx.get_start().get_start();
+            self.update.as_mut().unwrap().comments = self.get_text(self.location, start - 1);
+            self.update.as_mut().unwrap().query = self.get_text(start, stop);
             self.print_output();
             self.update = None;
         } else {
@@ -287,7 +283,9 @@ impl<'input> TSqlParserListener for Analyzer {
         }
         let stop = _ctx.get_stop().get_stop();
         let start = _ctx.get_start().get_start();
-        self.update.as_mut().unwrap().update_table.name = self.get_text(start, stop);
+        let update_table_name = self.get_text(start, stop);
+        self.update.as_mut().unwrap().update_table.name = update_table_name.clone();
+        self.update.as_mut().unwrap().update_table.query = update_table_name;
     }
 
     fn exit_table_name_with_hint(&mut self, _ctx: &Table_name_with_hintContext) {
