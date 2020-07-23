@@ -12,6 +12,8 @@ use crate::gen::tsqlparserlistener::TSqlParserListener;
 use crate::sql::table::Table;
 use crate::sql::update::UpdateStatement;
 
+use crate::Props;
+
 #[derive(PartialEq)]
 enum IDType {
     NONE,
@@ -41,7 +43,7 @@ pub struct Analyzer {
     logic_depth: i32,
     subquery_depth: i32,
     expression_depth: i32,
-    verbose: bool,
+    props: Props,
 }
 
 fn gen_md5(hashme: &str) -> String {
@@ -52,7 +54,7 @@ fn gen_md5(hashme: &str) -> String {
 
 impl Analyzer {
     pub fn new(
-        verbose: bool,
+        props: Props,
         original_text: String,
         file_name: String,
         location: isize,
@@ -68,7 +70,7 @@ impl Analyzer {
             logic_depth: 0,
             subquery_depth: 0,
             expression_depth: 0,
-            verbose,
+            props,
         }
     }
 
@@ -431,14 +433,14 @@ impl<'input> ParseTreeListener for Analyzer {
                 .push_str(&format!(" {}", &value));
         }
 
-        if !self.verbose {
+        if !self.props.verbose {
             return;
         }
         eprintln!("NODE {}", value);
     }
 
     fn enter_every_rule(&mut self, ctx: &dyn ParserRuleContext) {
-        if !self.verbose {
+        if !self.props.verbose {
             return;
         }
         eprintln!(
@@ -449,7 +451,7 @@ impl<'input> ParseTreeListener for Analyzer {
     }
 
     fn exit_every_rule(&mut self, ctx: &dyn ParserRuleContext) {
-        if !self.verbose {
+        if !self.props.verbose {
             return;
         }
         eprintln!(

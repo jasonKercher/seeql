@@ -43,12 +43,20 @@ mod sql {
 
 use listeners::analyzer::Analyzer;
 
+pub struct Props {
+    pub verbose: bool,
+    pub analyze: bool,
+}
+
 fn main() {
     let mut buffer = String::new();
-    let mut verbose = false;
 
     let args: Vec<String> = env::args().collect();
 
+    let mut props = Props {
+        verbose: false,
+        analyze: false,
+    };
     let mut files = Vec::new();
 
     for (i, arg) in args.iter().enumerate() {
@@ -57,7 +65,9 @@ fn main() {
         }
 
         if arg == "-v" || arg == "--verbose" {
-            verbose = true;
+            props.verbose = true;
+        } else if arg == "-a" || arg == "--analyze" {
+            props.analyze = true;
         } else if arg == "--create" {
             println!(
                 "if object_id('_check_', 'U') is NULL\n\
@@ -119,12 +129,7 @@ fn main() {
     let token_source = CommonTokenStream::new(lexer);
     let mut parser = TSqlParser::new(Box::new(token_source));
     parser.set_error_strategy(Box::new(SeeqlErrorStrategy::new()));
-    let analyzer = Box::new(Analyzer::new(
-        verbose,
-        query2,
-        basename,
-        hack_length as isize,
-    ));
+    let analyzer = Box::new(Analyzer::new(props, query2, basename, hack_length as isize));
     parser.add_parse_listener(analyzer);
 
     let _result = parser.tsql_file().expect("parser failed");
