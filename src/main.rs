@@ -32,16 +32,15 @@ mod gen {
 use gen::tsqllexer::TSqlLexer;
 use gen::tsqlparser::TSqlParser;
 
-mod listeners {
-    pub mod analyzer;
-}
+pub mod analyzer;
+pub mod commentparser;
 
 mod sql {
     pub mod table;
     pub mod update;
 }
 
-use listeners::analyzer::Analyzer;
+use analyzer::Analyzer;
 
 pub struct Props {
     pub verbose: bool,
@@ -108,6 +107,15 @@ fn main() {
         buffer = fs::read_to_string(files[0]).expect("Failed to read file");
         &files[0]
     });
+
+    /* If we are not analyzing and seeql is not invoked, then
+     * there is no need to begin parsing. Just send the buffer
+     * to stdout and exit.
+     */
+    if !props.analyze && !buffer.contains("seeql-") {
+        print!("{}", buffer);
+        std::process::exit(0);
+    }
 
     let basename = match Path::new(&file_name).file_name() {
         Some(x) => String::from(x.to_str().unwrap()),

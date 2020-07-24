@@ -12,6 +12,7 @@ use crate::gen::tsqlparserlistener::TSqlParserListener;
 use crate::sql::table::Table;
 use crate::sql::update::UpdateStatement;
 
+use crate::commentparser::CommentCommand;
 use crate::Props;
 
 #[derive(PartialEq)]
@@ -96,7 +97,7 @@ impl Analyzer {
             .collect()
     }
 
-    pub fn print_output(&self) {
+    pub fn print_modified(&self) {
         let query = str::replace(&self.update.as_ref().unwrap().query, "'", "''");
         let lineno = self.update.as_ref().unwrap().lineno - 1;
         let clean_query = query.split_whitespace().collect::<String>();
@@ -187,7 +188,7 @@ impl Analyzer {
         println!("/**** END GENERATED OUTPUT ****/\n");
     }
 
-    fn print_non_update(&self, stop: isize) {
+    fn print_original(&self, stop: isize) {
         if self.location < stop {
             print!("{}", self.get_text(self.location, stop));
         }
@@ -203,16 +204,23 @@ impl<'input> TSqlParserListener for Analyzer {
     fn exit_sql_clause(&mut self, _ctx: &Sql_clauseContext) {
         let stop = _ctx.get_stop().get_stop();
 
+        let start = _ctx.get_start().get_start();
+        let comments = self.get_text(self.location, start - 1);
+
         if self.update.is_some() {
-            let start = _ctx.get_start().get_start();
             self.update.as_mut().unwrap().comments = self.get_text(self.location, start - 1);
             self.update.as_mut().unwrap().query = self.get_text(start, stop);
-            self.print_output();
             self.update = None;
-        } else {
-            self.print_non_update(stop);
         }
 
+        let seeql_cmd = CommentCommand::get_commands(&comments);
+        if !seeql_cmd.is_empty() || self.props.analyze {
+            self.print_modified();
+        }
+
+        self.update.as_mut().unwrap().comments = comments;
+
+        self.print_original(stop);
         self.location = stop + 1;
     }
 
