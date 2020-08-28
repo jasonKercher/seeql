@@ -97,7 +97,7 @@ impl Analyzer {
             .collect()
     }
 
-    pub fn print_modified(&self) {
+    pub fn print_analysis(&self) {
         let query = str::replace(&self.update.as_ref().unwrap().query, "'", "''");
         let lineno = self.update.as_ref().unwrap().lineno - 1;
         let clean_query = query.split_whitespace().collect::<String>();
@@ -203,24 +203,27 @@ impl<'input> TSqlParserListener for Analyzer {
 
     fn exit_sql_clause(&mut self, _ctx: &Sql_clauseContext) {
         let stop = _ctx.get_stop().get_stop();
-
         let start = _ctx.get_start().get_start();
+
+        if self.update.is_none() {
+            self.print_original(stop);
+            self.location = stop + 1;
+            return;
+        }
+
         let comments = self.get_text(self.location, start - 1);
-
-        if self.update.is_some() {
-            self.update.as_mut().unwrap().comments = self.get_text(self.location, start - 1);
-            self.update.as_mut().unwrap().query = self.get_text(start, stop);
-            self.update = None;
-        }
-
         let seeql_cmd = CommentCommand::get_commands(&comments);
+
         if !seeql_cmd.is_empty() || self.props.analyze {
-            self.print_modified();
+            self.update.as_mut().unwrap().comments = comments;
+            self.update.as_mut().unwrap().query = self.get_text(start, stop);
+            for cmd in seeql_cmd {
+                println!("cmd: '{}' arg: '{}'", cmd.cmd, cmd.arg);
+            }
+            //self.print_analysis();
         }
 
-        self.update.as_mut().unwrap().comments = comments;
-
-        self.print_original(stop);
+        self.update = None;
         self.location = stop + 1;
     }
 
