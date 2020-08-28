@@ -188,6 +188,10 @@ impl Analyzer {
         println!("/**** END GENERATED OUTPUT ****/\n");
     }
 
+    fn print_assert(&self, cmd: CommentCommand) {}
+
+    fn batch_it(&mut self) {}
+
     fn print_original(&self, stop: isize) {
         if self.location < stop {
             print!("{}", self.get_text(self.location, stop));
@@ -214,13 +218,37 @@ impl<'input> TSqlParserListener for Analyzer {
         let comments = self.get_text(self.location, start - 1);
         let seeql_cmd = CommentCommand::get_commands(&comments);
 
-        if !seeql_cmd.is_empty() || self.props.analyze {
+        let mut analyzing = self.props.analyze;
+        let mut asserts = Vec::new();
+
+        if !seeql_cmd.is_empty() {
             self.update.as_mut().unwrap().comments = comments;
             self.update.as_mut().unwrap().query = self.get_text(start, stop);
             for cmd in seeql_cmd {
-                println!("cmd: '{}' arg: '{}'", cmd.cmd, cmd.arg);
+                //println!("cmd: '{}' arg: '{}'", cmd.cmd, cmd.arg);
+                if cmd.cmd == "analyze" {
+                    analyzing = true;
+                } else if cmd.cmd == "batch" {
+                    self.batch_it();
+                } else if cmd.cmd == "assert" {
+                    asserts.push(cmd);
+                } else if cmd.cmd == "statassert" {
+                    asserts.push(cmd);
+                    analyzing = true;
+                } else {
+                    eprintln!("Invalid seeql command: {}\n", cmd.cmd);
+                }
             }
-            //self.print_analysis();
+        }
+
+        if analyzing {
+            self.print_analysis();
+        } else {
+            self.print_original(stop);
+        }
+
+        for assert in asserts {
+            self.print_assert(assert);
         }
 
         self.update = None;

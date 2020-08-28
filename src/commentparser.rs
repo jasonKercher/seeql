@@ -8,7 +8,7 @@ impl CommentCommand {
         let mut comment = String::from(comment);
         let mut ret = Vec::new();
 
-        while true {
+        loop {
             let index = comment.find("seeql-");
             if index.is_none() {
                 break;
