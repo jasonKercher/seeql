@@ -151,7 +151,7 @@ impl Analyzer {
              * Calculate statistics
              */
             println!("\ninsert into _check_ (query, hash, file_name, line, table_name, field_name, affected, table_count, changed, to_null, to_blank)\n\
-                select '{}', '{}', '{}', {}, '{}', '{}'\n\
+                select DB_NAME(), '{}', '{}', '{}', {}, '{}', '{}'\n\
                     \t,count(*) affected\n\
                     \t,(select count(*) from {} x) table_count\n\
                     \t,sum(case when val != new_val then 1 else 0 end) changed\n\
@@ -188,7 +188,14 @@ impl Analyzer {
         println!("/**** END GENERATED OUTPUT ****/\n");
     }
 
-    fn print_assert(&self, cmd: CommentCommand) {}
+    fn print_stat_assert(&self, cmd: CommentCommand) {}
+
+    fn print_assert(&self, cmd: CommentCommand) {
+        if cmd.cmd == "statassert" {
+            self.print_stat_assert(cmd);
+            return;
+        }
+    }
 
     fn batch_it(&mut self) {}
 

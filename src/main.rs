@@ -71,7 +71,8 @@ fn main() {
             println!(
                 "if object_id('_check_', 'U') is NULL\n\
                     \tcreate table _check_ (\n\
-                        \t\t query              varchar(max)\n\
+                        \t\t dbname             varchar(50)\n\
+                        \t\t,query              varchar(max)\n\
                         \t\t,hash               varchar(50)\n\
                         \t\t,file_name          varchar(100)\n\
                         \t\t,line               int\n\
